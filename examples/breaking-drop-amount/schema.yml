@@ -1,0 +1,8 @@
+version: 2
+models:
+  - name: ecommerce.public.orders
+    columns:
+      - name: amount
+        tests:
+          - accepted_values:
+              values: []  # expect zero rows using dropped column post-cutover

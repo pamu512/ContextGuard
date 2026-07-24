@@ -1,0 +1,133 @@
+{
+  "change": {
+    "change_type": "drop_column",
+    "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+    "column": "amount",
+    "new_column": null,
+    "old_type": null,
+    "new_type": null,
+    "sql_before": null,
+    "sql_after": null,
+    "raw_input": "DROP COLUMN amount"
+  },
+  "evidence": {
+    "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+    "asset_name": "ecommerce.public.orders",
+    "schema_fields": [
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).id",
+        "name": "id",
+        "native_type": "NUMBER"
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).amount",
+        "name": "amount",
+        "native_type": "NUMBER"
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).customer_email",
+        "name": "customer_email",
+        "native_type": "VARCHAR"
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).status",
+        "name": "status",
+        "native_type": "VARCHAR"
+      }
+    ],
+    "downstream": [
+      {
+        "urn": "urn:li:dashboard:(looker,revenue_overview)",
+        "name": "Revenue Overview",
+        "entity_type": "dashboard",
+        "is_critical": true,
+        "column": "amount"
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)",
+        "name": "mart.order_metrics",
+        "entity_type": "dataset",
+        "is_critical": false,
+        "column": "amount"
+      }
+    ],
+    "owners": [
+      {
+        "urn": "urn:li:corpuser:data-platform",
+        "name": "Data Platform",
+        "email": "data-platform@example.com"
+      }
+    ],
+    "queries": [
+      {
+        "query": "select amount from ecommerce.public.orders",
+        "source": null
+      }
+    ],
+    "quality_issues": [
+      "Freshness assertion delayed 2h"
+    ],
+    "unknowns": [],
+    "raw_tool_payloads": {}
+  },
+  "risk": {
+    "level": "high",
+    "score": 60,
+    "reasons": [
+      "Dropping a column is a breaking schema change",
+      "2 downstream asset(s) depend on this asset/column",
+      "1 critical downstream asset(s) affected",
+      "1 known quer(ies) reference this asset",
+      "1 owner(s) should be notified",
+      "1 existing quality issue(s) on this asset"
+    ],
+    "affected_assets": [
+      {
+        "urn": "urn:li:dashboard:(looker,revenue_overview)",
+        "name": "Revenue Overview",
+        "entity_type": "dashboard",
+        "is_critical": true,
+        "column": "amount"
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)",
+        "name": "mart.order_metrics",
+        "entity_type": "dataset",
+        "is_critical": false,
+        "column": "amount"
+      }
+    ],
+    "owner_count": 1,
+    "query_usage_count": 1,
+    "quality_issue_count": 1
+  },
+  "artifacts": {
+    "impact_report_md": "# ContextGuard Impact Report\n\n**Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n**Change:** `drop_column`\n**Risk:** HIGH (score 60)\n\n## Why this matters\n- Dropping a column is a breaking schema change\n- 2 downstream asset(s) depend on this asset/column\n- 1 critical downstream asset(s) affected\n- 1 known quer(ies) reference this asset\n- 1 owner(s) should be notified\n- 1 existing quality issue(s) on this asset\n\n## Evidence\n- Schema fields: 4\n- Downstream: 2\n- Owners: 1\n- Queries: 1\n\n## Unknowns\n- None reported\n\n## Impact claims\n- Downstream asset `Revenue Overview` may break — evidence: `urn:li:dashboard:(looker,revenue_overview)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Downstream asset `mart.order_metrics` may break — evidence: `urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`",
+    "compatibility_sql": "-- Compatibility view preserving `amount` as NULL during migration\nCREATE OR REPLACE VIEW ecommerce.public.orders_compat AS\nSELECT * EXCLUDE (amount), CAST(NULL AS VARCHAR) AS amount\nFROM ecommerce.public.orders;\n",
+    "dbt_tests_yml": "version: 2\nmodels:\n  - name: ecommerce.public.orders\n    columns:\n      - name: amount\n        tests:\n          - accepted_values:\n              values: []  # expect zero rows using dropped column post-cutover\n",
+    "migration_checklist_md": "# Migration checklist\n\n1. Confirm risk score (60) with owners.\n2. Open PR with compatibility SQL + dbt tests from this package.\n3. Notify downstream owners (messages below).\n4. Deploy compatibility view / dual-write period.\n5. Migrate consumers, then remove compatibility shim.\n6. Re-run ContextGuard analysis after cutover.",
+    "owner_messages": [
+      "Hi data-platform@example.com — proposed `drop_column` on `ecommerce.public.orders` (urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)) has risk high. Please review the compatibility plan before merge."
+    ],
+    "impact_claims": [
+      {
+        "claim": "Downstream asset `Revenue Overview` may break",
+        "evidence_urns": [
+          "urn:li:dashboard:(looker,revenue_overview)",
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "severity_note": null
+      },
+      {
+        "claim": "Downstream asset `mart.order_metrics` may break",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)",
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "severity_note": null
+      }
+    ]
+  },
+  "run_id": "830ad654-c17c-4cba-869f-abe350a69503",
+  "writeback_document_urn": null
+}

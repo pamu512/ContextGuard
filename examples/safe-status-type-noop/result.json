@@ -1,0 +1,84 @@
+{
+  "change": {
+    "change_type": "type_change",
+    "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+    "column": "status",
+    "new_column": null,
+    "old_type": "VARCHAR",
+    "new_type": "VARCHAR",
+    "sql_before": null,
+    "sql_after": null,
+    "raw_input": "change column status from VARCHAR to VARCHAR"
+  },
+  "evidence": {
+    "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+    "asset_name": "ecommerce.public.orders",
+    "schema_fields": [
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).id",
+        "name": "id",
+        "native_type": "NUMBER"
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).amount",
+        "name": "amount",
+        "native_type": "NUMBER"
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).customer_email",
+        "name": "customer_email",
+        "native_type": "VARCHAR"
+      },
+      {
+        "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).status",
+        "name": "status",
+        "native_type": "VARCHAR"
+      }
+    ],
+    "downstream": [],
+    "owners": [
+      {
+        "urn": "urn:li:corpuser:data-platform",
+        "name": "Data Platform",
+        "email": "data-platform@example.com"
+      }
+    ],
+    "queries": [],
+    "quality_issues": [],
+    "unknowns": [],
+    "raw_tool_payloads": {}
+  },
+  "risk": {
+    "level": "medium",
+    "score": 25,
+    "reasons": [
+      "Type changes can break casts, joins, and BI calculations",
+      "No downstream dependencies found in DataHub lineage",
+      "1 owner(s) should be notified"
+    ],
+    "affected_assets": [],
+    "owner_count": 1,
+    "query_usage_count": 0,
+    "quality_issue_count": 0
+  },
+  "artifacts": {
+    "impact_report_md": "# ContextGuard Impact Report\n\n**Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n**Change:** `type_change`\n**Risk:** MEDIUM (score 25)\n\n## Why this matters\n- Type changes can break casts, joins, and BI calculations\n- No downstream dependencies found in DataHub lineage\n- 1 owner(s) should be notified\n\n## Evidence\n- Schema fields: 4\n- Downstream: 0\n- Owners: 1\n- Queries: 0\n\n## Unknowns\n- None reported\n\n## Impact claims\n- No downstream dependents found in retrieved lineage — evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`",
+    "compatibility_sql": "-- Soft type migration via casted compatibility column\nCREATE OR REPLACE VIEW ecommerce.public.orders_compat AS\nSELECT * EXCLUDE (status), CAST(status AS VARCHAR) AS status\nFROM ecommerce.public.orders;\n",
+    "dbt_tests_yml": "version: 2\nmodels:\n  - name: ecommerce.public.orders\n    columns:\n      - name: status\n        tests: [not_null]\n",
+    "migration_checklist_md": "# Migration checklist\n\n1. Confirm risk score (25) with owners.\n2. Open PR with compatibility SQL + dbt tests from this package.\n3. Notify downstream owners (messages below).\n4. Deploy compatibility view / dual-write period.\n5. Migrate consumers, then remove compatibility shim.\n6. Re-run ContextGuard analysis after cutover.",
+    "owner_messages": [
+      "Hi data-platform@example.com — proposed `type_change` on `ecommerce.public.orders` (urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)) has risk medium. Please review the compatibility plan before merge."
+    ],
+    "impact_claims": [
+      {
+        "claim": "No downstream dependents found in retrieved lineage",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "severity_note": null
+      }
+    ]
+  },
+  "run_id": "480fe28c-1fde-4bbe-ab60-d6532111f724",
+  "writeback_document_urn": null
+}

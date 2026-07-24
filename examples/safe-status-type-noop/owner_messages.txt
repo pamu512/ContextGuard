@@ -1,0 +1,1 @@
+Hi data-platform@example.com — proposed `type_change` on `ecommerce.public.orders` (urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)) has risk medium. Please review the compatibility plan before merge.

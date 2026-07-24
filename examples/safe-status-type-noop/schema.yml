@@ -1,0 +1,6 @@
+version: 2
+models:
+  - name: ecommerce.public.orders
+    columns:
+      - name: status
+        tests: [not_null]
