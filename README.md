@@ -44,11 +44,14 @@ streamlit run app.py
 ## Merge gate (CI)
 
 ```bash
+# Issue a certificate from a change request + evidence fixture
+contextguard certify changes/demo/drop-amount.json --out-dir artifacts/drop --fail-on-breakage
+
 contextguard check examples/breaking-drop-amount/breakage_certificate.json   # exits 1
 contextguard check examples/safe-status-type-noop/breakage_certificate.json  # exits 0
 ```
 
-GitHub Action: [`.github/workflows/contextguard.yml`](.github/workflows/contextguard.yml)  
+GitHub Action posts a PR comment with the certificate table and blocks merge when `changes/active/*.json` has BREAKS.  
 Override with PR label `allow-breakage`.
 
 ## DataHub Skill

@@ -3,11 +3,15 @@ name: ContextGuard Merge Gate
 on:
   pull_request:
     paths:
-      - "examples/**/breakage_certificate.json"
       - "changes/**"
+      - "examples/**"
       - ".github/workflows/contextguard.yml"
       - "contextguard/**"
       - "pyproject.toml"
+
+permissions:
+  contents: read
+  pull-requests: write
 
 jobs:
   breakage-certificate:
@@ -22,33 +26,112 @@ jobs:
       - name: Install ContextGuard
         run: pip install -e .
 
-      - name: Determine allow-breakage override
-        id: flags
+      - name: Self-test example certificates
+        run: |
+          set -euo pipefail
+          # Safe example must pass
+          contextguard check examples/safe-status-type-noop/breakage_certificate.json
+          # Breaking example must fail (unless allow-breakage)
+          if echo "${{ join(github.event.pull_request.labels.*.name, ',') }}" | grep -qi 'allow-breakage'; then
+            contextguard check examples/breaking-drop-amount/breakage_certificate.json --allow-breakage
+          else
+            if contextguard check examples/breaking-drop-amount/breakage_certificate.json; then
+              echo "Breaking example unexpectedly passed"
+              exit 1
+            fi
+          fi
+          # Demo change files must certify correctly
+          contextguard certify changes/demo/safe-status-noop.json --out-dir artifacts/demo-safe
+          if contextguard certify changes/demo/drop-amount.json --out-dir artifacts/demo-drop --fail-on-breakage; then
+            echo "Demo drop-amount should block"
+            exit 1
+          fi
+
+      - name: Certify active change requests
+        id: certify
         env:
           LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
         run: |
-          if echo "$LABELS" | grep -qi 'allow-breakage'; then
-            echo "allow=--allow-breakage" >> "$GITHUB_OUTPUT"
-          else
-            echo "allow=" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          allow=""
+          if echo "$LABELS" | grep -qi 'allow-breakage'; then allow=1; fi
+
+          shopt -s nullglob
+          files=(changes/active/*.json)
+          comment="artifacts/pr_comment_all.md"
+          echo "## ContextGuard certificates" > "$comment"
+          echo "" >> "$comment"
+          fail=0
+
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "_No active change requests in \`changes/active/\`._" >> "$comment"
+            echo "Demo self-test passed. Add JSON under \`changes/active/\` to gate a real change." >> "$comment"
+            echo "fail=0" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
 
-      - name: Gate on checked-in breaking certificate (must FAIL without override)
-        if: ${{ !contains(github.event.pull_request.labels.*.name, 'allow-breakage') }}
+          for f in "${files[@]}"; do
+            name=$(basename "$f" .json)
+            out="artifacts/$name"
+            echo "Certifying $f"
+            set +e
+            contextguard certify "$f" --out-dir "$out" --fail-on-breakage
+            code=$?
+            set -e
+            if [ "$code" -eq 0 ]; then
+              echo "### \`$f\` — ALLOW" >> "$comment"
+            else
+              echo "### \`$f\` — BLOCK" >> "$comment"
+              if [ -n "$allow" ]; then
+                echo "_Override: \`allow-breakage\` label present_" >> "$comment"
+                contextguard check "$out/breakage_certificate.json" --allow-breakage
+              else
+                fail=1
+              fi
+            fi
+            if [ -f "$out/pr_comment.md" ]; then
+              cat "$out/pr_comment.md" >> "$comment"
+              echo "" >> "$comment"
+            fi
+          done
+
+          echo "fail=$fail" >> "$GITHUB_OUTPUT"
+
+      - name: Comment certificate on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = 'artifacts/pr_comment_all.md';
+            if (!fs.existsSync(path)) return;
+            const body = fs.readFileSync(path, 'utf8');
+            const marker = '## ContextGuard certificates';
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Enforce active merge gate
         run: |
-          set +e
-          contextguard check examples/breaking-drop-amount/breakage_certificate.json
-          code=$?
-          set -e
-          if [ "$code" -eq 0 ]; then
-            echo "Expected breaking certificate to fail the gate"
+          if [ "${{ steps.certify.outputs.fail }}" = "1" ]; then
+            echo "ContextGuard blocked merge — see PR comment"
             exit 1
           fi
-          echo "Breaking certificate correctly blocked merge"
-
-      - name: Gate on safe certificate (must PASS)
-        run: contextguard check examples/safe-status-type-noop/breakage_certificate.json
-
-      - name: Optional override path
-        if: ${{ contains(github.event.pull_request.labels.*.name, 'allow-breakage') }}
-        run: contextguard check examples/breaking-drop-amount/breakage_certificate.json --allow-breakage

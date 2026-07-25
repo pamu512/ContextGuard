@@ -1,12 +1,12 @@
 # ContextGuard Breakage Certificate (`cgcert/v1`)
 
-- **Run:** `98c0d0b2-8cd6-4ba8-b6be-fe19192e7a22`
-- **Issued:** 2026-07-25T02:15:41Z
+- **Run:** `d15bd50d-cba1-43b2-9489-758bf5c1efdb`
+- **Issued:** 2026-07-25T23:44:00Z
 - **Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)
 - **Change:** `type_change` status → VARCHAR
 - **Risk:** MEDIUM (27)
 - **Merge allowed:** YES
-- **Hash:** `b7e1e8957e93da3f`
+- **Hash:** `cc8cc1b446a8b6c0`
 
 ## Summary
 - BREAKS: **0**

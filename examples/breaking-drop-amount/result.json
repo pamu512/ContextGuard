@@ -60,12 +60,20 @@
     ],
     "queries": [
       {
-        "query": "select amount from ecommerce.public.orders",
-        "source": null
+        "query": "select o.amount, o.customer_email from ecommerce.public.orders o",
+        "source": "looker:revenue_overview"
+      },
+      {
+        "query": "select * from ecommerce.public.orders where status = 'complete'",
+        "source": "adhoc:finance"
       },
       {
         "query": "select id, status from ecommerce.public.orders",
-        "source": null
+        "source": "dbt:staging"
+      },
+      {
+        "query": "select sum(amount) as gmv from ecommerce.public.orders",
+        "source": "metrics:gmv"
       }
     ],
     "quality_issues": [
@@ -75,16 +83,16 @@
     "raw_tool_payloads": {}
   },
   "risk": {
-    "level": "high",
-    "score": 72,
+    "level": "critical",
+    "score": 91,
     "reasons": [
       "Dropping a column is a breaking schema change",
       "2 downstream asset(s) depend on this asset/column",
       "1 critical downstream asset(s) affected",
-      "2 known quer(ies) reference this asset",
+      "4 known quer(ies) reference this asset",
       "1 owner(s) should be notified",
       "1 existing quality issue(s) on this asset",
-      "1 known quer(ies) classified BREAKS by certificate engine"
+      "3 known quer(ies) classified BREAKS by certificate engine"
     ],
     "affected_assets": [
       {
@@ -103,16 +111,16 @@
       }
     ],
     "owner_count": 1,
-    "query_usage_count": 2,
+    "query_usage_count": 4,
     "quality_issue_count": 1
   },
   "artifacts": {
-    "impact_report_md": "## Breakage Certificate\n\n- Merge allowed: **NO**\n- BREAKS / SAFE / UNKNOWN: 1 / 1 / 0\n- Hash: `587c8802cf24d4c1`\n\n# ContextGuard Impact Report\n\n**Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n**Change:** `drop_column`\n**Risk:** HIGH (score 72)\n\n## Why this matters\n- Dropping a column is a breaking schema change\n- 2 downstream asset(s) depend on this asset/column\n- 1 critical downstream asset(s) affected\n- 2 known quer(ies) reference this asset\n- 1 owner(s) should be notified\n- 1 existing quality issue(s) on this asset\n- 1 known quer(ies) classified BREAKS by certificate engine\n\n## Evidence\n- Schema fields: 4\n- Downstream: 2\n- Owners: 1\n- Queries: 2\n\n## Unknowns\n- None reported\n\n## Impact claims\n- Downstream asset `Revenue Overview` may break — evidence: `urn:li:dashboard:(looker,revenue_overview)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Downstream asset `mart.order_metrics` may break — evidence: `urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`",
+    "impact_report_md": "## Breakage Certificate\n\n- Merge allowed: **NO**\n- BREAKS / SAFE / UNKNOWN: 3 / 1 / 0\n- Hash: `ba2035cf703eef86`\n\n# ContextGuard Impact Report\n\n**Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n**Change:** `drop_column`\n**Risk:** CRITICAL (score 91)\n\n## Why this matters\n- Dropping a column is a breaking schema change\n- 2 downstream asset(s) depend on this asset/column\n- 1 critical downstream asset(s) affected\n- 4 known quer(ies) reference this asset\n- 1 owner(s) should be notified\n- 1 existing quality issue(s) on this asset\n- 3 known quer(ies) classified BREAKS by certificate engine\n\n## Evidence\n- Schema fields: 4\n- Downstream: 2\n- Owners: 1\n- Queries: 4\n\n## Unknowns\n- None reported\n\n## Impact claims\n- Downstream asset `Revenue Overview` may break — evidence: `urn:li:dashboard:(looker,revenue_overview)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Downstream asset `mart.order_metrics` may break — evidence: `urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`",
     "compatibility_sql": "-- Compatibility view preserving `amount` as NULL during migration\nCREATE OR REPLACE VIEW ecommerce.public.orders_compat AS\nSELECT * EXCLUDE (amount), CAST(NULL AS VARCHAR) AS amount\nFROM ecommerce.public.orders;\n",
     "dbt_tests_yml": "version: 2\nmodels:\n  - name: ecommerce.public.orders\n    columns:\n      - name: amount\n        tests:\n          - accepted_values:\n              values: []  # expect zero rows using dropped column post-cutover\n",
-    "migration_checklist_md": "# Migration checklist\n\n1. Review Breakage Certificate — merge allowed only if BREAKS == 0.\n2. Confirm risk score (72) with owners.\n3. Apply consumer patches for each BREAKS query (see consumer_patches.sql).\n4. Open PR with compatibility SQL + dbt tests from this package.\n5. Notify downstream owners (messages below).\n6. Deploy compatibility view / dual-write period.\n7. Migrate consumers, then remove compatibility shim.\n8. Re-run ContextGuard; certificate must allow merge before cutover.",
+    "migration_checklist_md": "# Migration checklist\n\n1. Review Breakage Certificate — merge allowed only if BREAKS == 0.\n2. Confirm risk score (91) with owners.\n3. Apply consumer patches for each BREAKS query (see consumer_patches.sql).\n4. Open PR with compatibility SQL + dbt tests from this package.\n5. Notify downstream owners (messages below).\n6. Deploy compatibility view / dual-write period.\n7. Migrate consumers, then remove compatibility shim.\n8. Re-run ContextGuard; certificate must allow merge before cutover.",
     "owner_messages": [
-      "Hi data-platform@example.com — proposed `drop_column` on `ecommerce.public.orders` (urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)) has risk high. Please review the compatibility plan before merge."
+      "Hi data-platform@example.com — proposed `drop_column` on `ecommerce.public.orders` (urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)) has risk critical. Please review the compatibility plan before merge."
     ],
     "impact_claims": [
       {
@@ -137,17 +145,31 @@
           "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
         ],
         "severity_note": null
+      },
+      {
+        "claim": "Query uses SELECT * against `ecommerce.public.orders` — dropping `amount` changes the projection",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "severity_note": null
+      },
+      {
+        "claim": "Query references dropped column `amount`",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "severity_note": null
       }
     ],
-    "certificate_md": "# ContextGuard Breakage Certificate (`cgcert/v1`)\n\n- **Run:** `a0b8d58e-1531-42ab-8395-982ad42b5a5c`\n- **Issued:** 2026-07-25T02:15:41Z\n- **Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n- **Change:** `drop_column` amount\n- **Risk:** HIGH (72)\n- **Merge allowed:** NO\n- **Hash:** `587c8802cf24d4c1`\n\n## Summary\n- BREAKS: **1**\n- SAFE: **1**\n- UNKNOWN: **0**\n\n## Query verdicts\n### 1. `BREAKS`\n- Query: `select amount from ecommerce.public.orders`\n- Reason: Query references dropped column `amount`\n- Evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Suggested patch:\n```sql\n-- Consumer patch: stop selecting dropped column `amount`\nselect /* REMOVED:amount */ NULL from ecommerce.public.orders\n```\n\n### 2. `SAFE`\n- Query: `select id, status from ecommerce.public.orders`\n- Reason: Query does not reference `amount`\n- Evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n",
-    "consumer_patches_sql": "-- ContextGuard consumer patches (BREAKS only)\n\n-- Patch 1: Query references dropped column `amount`\n-- Consumer patch: stop selecting dropped column `amount`\nselect /* REMOVED:amount */ NULL from ecommerce.public.orders\n"
+    "certificate_md": "# ContextGuard Breakage Certificate (`cgcert/v1`)\n\n- **Run:** `6357b860-84ff-49c9-9d96-512052f5a9d7`\n- **Issued:** 2026-07-25T23:44:00Z\n- **Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n- **Change:** `drop_column` amount\n- **Risk:** CRITICAL (91)\n- **Merge allowed:** NO\n- **Hash:** `ba2035cf703eef86`\n\n## Summary\n- BREAKS: **3**\n- SAFE: **1**\n- UNKNOWN: **0**\n\n## Query verdicts\n### 1. `BREAKS`\n- Query: `select o.amount, o.customer_email from ecommerce.public.orders o`\n- Reason: Query references dropped column `amount`\n- Evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Suggested patch:\n```sql\n-- Consumer patch: stop selecting dropped column `amount`\nselect o./*REMOVED*/NULL, o.customer_email from ecommerce.public.orders o\n```\n\n### 2. `BREAKS`\n- Query: `select * from ecommerce.public.orders where status = 'complete'`\n- Reason: Query uses SELECT * against `ecommerce.public.orders` — dropping `amount` changes the projection\n- Evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Suggested patch:\n```sql\n-- Replace SELECT * with an explicit column list excluding `amount`\n-- Suggested columns: customer_email, id, status\nselect * from ecommerce.public.orders where status = 'complete'\n```\n\n### 3. `SAFE`\n- Query: `select id, status from ecommerce.public.orders`\n- Reason: Query does not reference `amount`\n- Evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n\n### 4. `BREAKS`\n- Query: `select sum(amount) as gmv from ecommerce.public.orders`\n- Reason: Query references dropped column `amount`\n- Evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Suggested patch:\n```sql\n-- Consumer patch: stop selecting dropped column `amount`\nselect sum(/* REMOVED:amount */ NULL) as gmv from ecommerce.public.orders\n```\n",
+    "consumer_patches_sql": "-- ContextGuard consumer patches (BREAKS only)\n\n-- Patch 1: Query references dropped column `amount`\n-- Consumer patch: stop selecting dropped column `amount`\nselect o./*REMOVED*/NULL, o.customer_email from ecommerce.public.orders o\n\n-- Patch 2: Query uses SELECT * against `ecommerce.public.orders` — dropping `amount` changes the projection\n-- Replace SELECT * with an explicit column list excluding `amount`\n-- Suggested columns: customer_email, id, status\nselect * from ecommerce.public.orders where status = 'complete'\n\n-- Patch 3: Query references dropped column `amount`\n-- Consumer patch: stop selecting dropped column `amount`\nselect sum(/* REMOVED:amount */ NULL) as gmv from ecommerce.public.orders\n"
   },
-  "run_id": "a0b8d58e-1531-42ab-8395-982ad42b5a5c",
+  "run_id": "6357b860-84ff-49c9-9d96-512052f5a9d7",
   "writeback_document_urn": null,
   "certificate": {
     "version": "cgcert/v1",
-    "run_id": "a0b8d58e-1531-42ab-8395-982ad42b5a5c",
-    "issued_at": "2026-07-25T02:15:41Z",
+    "run_id": "6357b860-84ff-49c9-9d96-512052f5a9d7",
+    "issued_at": "2026-07-25T23:44:00Z",
     "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
     "asset_name": "ecommerce.public.orders",
     "change": {
@@ -161,25 +183,39 @@
       "sql_after": null,
       "raw_input": "DROP COLUMN amount"
     },
-    "risk_level": "high",
-    "risk_score": 72,
+    "risk_level": "critical",
+    "risk_score": 91,
     "queries": [
       {
-        "query": "select amount from ecommerce.public.orders",
-        "source": null,
+        "query": "select o.amount, o.customer_email from ecommerce.public.orders o",
+        "source": "looker:revenue_overview",
         "verdict": "BREAKS",
         "reason": "Query references dropped column `amount`",
         "evidence_urns": [
           "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
         ],
         "referenced_columns": [
-          "amount"
+          "amount",
+          "customer_email"
         ],
-        "suggested_patch": "-- Consumer patch: stop selecting dropped column `amount`\nselect /* REMOVED:amount */ NULL from ecommerce.public.orders\n"
+        "suggested_patch": "-- Consumer patch: stop selecting dropped column `amount`\nselect o./*REMOVED*/NULL, o.customer_email from ecommerce.public.orders o\n"
+      },
+      {
+        "query": "select * from ecommerce.public.orders where status = 'complete'",
+        "source": "adhoc:finance",
+        "verdict": "BREAKS",
+        "reason": "Query uses SELECT * against `ecommerce.public.orders` — dropping `amount` changes the projection",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "referenced_columns": [
+          "status"
+        ],
+        "suggested_patch": "-- Replace SELECT * with an explicit column list excluding `amount`\n-- Suggested columns: customer_email, id, status\nselect * from ecommerce.public.orders where status = 'complete'\n"
       },
       {
         "query": "select id, status from ecommerce.public.orders",
-        "source": null,
+        "source": "dbt:staging",
         "verdict": "SAFE",
         "reason": "Query does not reference `amount`",
         "evidence_urns": [
@@ -190,15 +226,28 @@
           "status"
         ],
         "suggested_patch": null
+      },
+      {
+        "query": "select sum(amount) as gmv from ecommerce.public.orders",
+        "source": "metrics:gmv",
+        "verdict": "BREAKS",
+        "reason": "Query references dropped column `amount`",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "referenced_columns": [
+          "amount"
+        ],
+        "suggested_patch": "-- Consumer patch: stop selecting dropped column `amount`\nselect sum(/* REMOVED:amount */ NULL) as gmv from ecommerce.public.orders\n"
       }
     ],
     "summary": {
-      "breaks": 1,
+      "breaks": 3,
       "safe": 1,
       "unknown": 0
     },
     "merge_allowed": false,
-    "content_hash": "587c8802cf24d4c1",
+    "content_hash": "ba2035cf703eef86",
     "notes": []
   }
 }

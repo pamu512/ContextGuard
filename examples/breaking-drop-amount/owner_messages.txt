@@ -1,1 +1,1 @@
-Hi data-platform@example.com — proposed `drop_column` on `ecommerce.public.orders` (urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)) has risk high. Please review the compatibility plan before merge.
+Hi data-platform@example.com — proposed `drop_column` on `ecommerce.public.orders` (urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)) has risk critical. Please review the compatibility plan before merge.

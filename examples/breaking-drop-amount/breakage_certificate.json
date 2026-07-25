@@ -1,7 +1,7 @@
 {
   "version": "cgcert/v1",
-  "run_id": "a0b8d58e-1531-42ab-8395-982ad42b5a5c",
-  "issued_at": "2026-07-25T02:15:41Z",
+  "run_id": "6357b860-84ff-49c9-9d96-512052f5a9d7",
+  "issued_at": "2026-07-25T23:44:00Z",
   "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
   "asset_name": "ecommerce.public.orders",
   "change": {
@@ -15,25 +15,39 @@
     "sql_after": null,
     "raw_input": "DROP COLUMN amount"
   },
-  "risk_level": "high",
-  "risk_score": 72,
+  "risk_level": "critical",
+  "risk_score": 91,
   "queries": [
     {
-      "query": "select amount from ecommerce.public.orders",
-      "source": null,
+      "query": "select o.amount, o.customer_email from ecommerce.public.orders o",
+      "source": "looker:revenue_overview",
       "verdict": "BREAKS",
       "reason": "Query references dropped column `amount`",
       "evidence_urns": [
         "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
       ],
       "referenced_columns": [
-        "amount"
+        "amount",
+        "customer_email"
       ],
-      "suggested_patch": "-- Consumer patch: stop selecting dropped column `amount`\nselect /* REMOVED:amount */ NULL from ecommerce.public.orders\n"
+      "suggested_patch": "-- Consumer patch: stop selecting dropped column `amount`\nselect o./*REMOVED*/NULL, o.customer_email from ecommerce.public.orders o\n"
+    },
+    {
+      "query": "select * from ecommerce.public.orders where status = 'complete'",
+      "source": "adhoc:finance",
+      "verdict": "BREAKS",
+      "reason": "Query uses SELECT * against `ecommerce.public.orders` \u2014 dropping `amount` changes the projection",
+      "evidence_urns": [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+      ],
+      "referenced_columns": [
+        "status"
+      ],
+      "suggested_patch": "-- Replace SELECT * with an explicit column list excluding `amount`\n-- Suggested columns: customer_email, id, status\nselect * from ecommerce.public.orders where status = 'complete'\n"
     },
     {
       "query": "select id, status from ecommerce.public.orders",
-      "source": null,
+      "source": "dbt:staging",
       "verdict": "SAFE",
       "reason": "Query does not reference `amount`",
       "evidence_urns": [
@@ -44,14 +58,27 @@
         "status"
       ],
       "suggested_patch": null
+    },
+    {
+      "query": "select sum(amount) as gmv from ecommerce.public.orders",
+      "source": "metrics:gmv",
+      "verdict": "BREAKS",
+      "reason": "Query references dropped column `amount`",
+      "evidence_urns": [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+      ],
+      "referenced_columns": [
+        "amount"
+      ],
+      "suggested_patch": "-- Consumer patch: stop selecting dropped column `amount`\nselect sum(/* REMOVED:amount */ NULL) as gmv from ecommerce.public.orders\n"
     }
   ],
   "summary": {
-    "breaks": 1,
+    "breaks": 3,
     "safe": 1,
     "unknown": 0
   },
   "merge_allowed": false,
-  "content_hash": "587c8802cf24d4c1",
+  "content_hash": "ba2035cf703eef86",
   "notes": []
 }

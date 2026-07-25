@@ -1,0 +1,5 @@
+{
+  "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+  "description": "change column status from VARCHAR to VARCHAR",
+  "evidence_fixture": "examples/fixtures/orders_evidence.json"
+}

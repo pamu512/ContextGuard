@@ -1,0 +1,5 @@
+{
+  "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+  "description": "DROP COLUMN amount",
+  "evidence_fixture": "examples/fixtures/orders_evidence.json"
+}

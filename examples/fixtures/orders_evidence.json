@@ -1,0 +1,72 @@
+{
+  "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+  "asset_name": "ecommerce.public.orders",
+  "schema_fields": [
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).id",
+      "name": "id",
+      "native_type": "NUMBER"
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).amount",
+      "name": "amount",
+      "native_type": "NUMBER"
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).customer_email",
+      "name": "customer_email",
+      "native_type": "VARCHAR"
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD).status",
+      "name": "status",
+      "native_type": "VARCHAR"
+    }
+  ],
+  "downstream": [
+    {
+      "urn": "urn:li:dashboard:(looker,revenue_overview)",
+      "name": "Revenue Overview",
+      "entity_type": "dashboard",
+      "is_critical": true,
+      "column": "amount"
+    },
+    {
+      "urn": "urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)",
+      "name": "mart.order_metrics",
+      "entity_type": "dataset",
+      "is_critical": false,
+      "column": "amount"
+    }
+  ],
+  "owners": [
+    {
+      "urn": "urn:li:corpuser:data-platform",
+      "name": "Data Platform",
+      "email": "data-platform@example.com"
+    }
+  ],
+  "queries": [
+    {
+      "query": "select o.amount, o.customer_email from ecommerce.public.orders o",
+      "source": "looker:revenue_overview"
+    },
+    {
+      "query": "select * from ecommerce.public.orders where status = 'complete'",
+      "source": "adhoc:finance"
+    },
+    {
+      "query": "select id, status from ecommerce.public.orders",
+      "source": "dbt:staging"
+    },
+    {
+      "query": "select sum(amount) as gmv from ecommerce.public.orders",
+      "source": "metrics:gmv"
+    }
+  ],
+  "quality_issues": [
+    "Freshness assertion delayed 2h"
+  ],
+  "unknowns": [],
+  "raw_tool_payloads": {}
+}

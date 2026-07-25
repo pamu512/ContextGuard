@@ -2,7 +2,7 @@
 
 - Merge allowed: **YES**
 - BREAKS / SAFE / UNKNOWN: 0 / 1 / 0
-- Hash: `b7e1e8957e93da3f`
+- Hash: `cc8cc1b446a8b6c0`
 
 # ContextGuard Impact Report
 

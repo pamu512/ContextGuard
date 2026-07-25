@@ -19,7 +19,7 @@ load_dotenv()
 
 st.set_page_config(
     page_title="ContextGuard",
-    page_icon="🛡️",
+    page_icon="CG",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -64,8 +64,8 @@ class SessionTools:
 def main() -> None:
     st.title("ContextGuard")
     st.caption(
-        "Schema-change safety agent grounded in DataHub lineage, ownership, and usage — "
-        "read → reason → act."
+        "Query-Aware Breakage Certificates on DataHub — prove which known queries die, "
+        "patch consumers, gate merge. Beyond Impact Analysis."
     )
 
     if "step" not in st.session_state:
@@ -205,14 +205,35 @@ def _step_analyze() -> None:
     st.subheader("Analyze change")
     urn = st.session_state.get("asset_urn", "")
     st.markdown(f"**Asset:** `{urn}`")
+
+    if st.session_state.get("demo_mode"):
+        st.markdown("**One-click demos** (judge-ready)")
+        d1, d2 = st.columns(2)
+        if d1.button("Breaking: DROP COLUMN amount", type="primary"):
+            _finish_analysis(urn, "DROP COLUMN amount", None, None, None)
+            return
+        if d2.button("Safe: status type no-op"):
+            _finish_analysis(
+                urn,
+                "change column status from VARCHAR to VARCHAR",
+                None,
+                None,
+                None,
+            )
+            return
+
     raw = st.text_area(
         "Describe the proposed change",
-        placeholder="Example: DROP COLUMN customer_email  /  rename column amount to amount_usd",
+        value=st.session_state.get("draft_change", ""),
+        placeholder="Example: DROP COLUMN amount  /  rename column amount to amount_usd",
         height=120,
     )
-    uploaded = st.file_uploader("Optional SQL / dbt / schema.yml upload", type=["sql", "yml", "yaml", "txt"])
-    sql_before = st.text_area("SQL before (for model replacement)", height=100)
-    sql_after = st.text_area("SQL after (for model replacement)", height=100)
+    uploaded = st.file_uploader(
+        "Optional SQL / dbt / schema.yml upload",
+        type=["sql", "yml", "yaml", "txt"],
+    )
+    sql_before = st.text_area("SQL before (for model replacement)", height=80)
+    sql_after = st.text_area("SQL after (for model replacement)", height=80)
     uploaded_text = uploaded.read().decode("utf-8") if uploaded else None
 
     c1, c2 = st.columns(2)
@@ -220,33 +241,37 @@ def _step_analyze() -> None:
         st.session_state.step = 1
         st.rerun()
     if c2.button("Run analysis", type="primary"):
-        with st.spinner("Collecting DataHub evidence and scoring risk…"):
-            try:
-                if st.session_state.get("demo_mode"):
-                    result = _run(_demo_analyze(urn, raw, sql_before, sql_after, uploaded_text))
-                else:
-                    settings = _settings_from_session()
-                    tools = SessionTools(settings)
-                    client = DataHubClient(tools, settings)
-                    orch = AnalysisOrchestrator(client, settings)
-                    result = _run(
-                        orch.analyze(
-                            asset_urn=urn,
-                            raw_input=raw,
-                            sql_before=sql_before or None,
-                            sql_after=sql_after or None,
-                            uploaded_text=uploaded_text,
-                        )
+        _finish_analysis(urn, raw, sql_before, sql_after, uploaded_text)
+
+
+def _finish_analysis(urn, raw, sql_before, sql_after, uploaded_text) -> None:
+    with st.spinner("Collecting DataHub evidence and issuing Breakage Certificate…"):
+        try:
+            if st.session_state.get("demo_mode"):
+                result = _run(_demo_analyze(urn, raw, sql_before, sql_after, uploaded_text))
+            else:
+                settings = _settings_from_session()
+                tools = SessionTools(settings)
+                client = DataHubClient(tools, settings)
+                orch = AnalysisOrchestrator(client, settings)
+                result = _run(
+                    orch.analyze(
+                        asset_urn=urn,
+                        raw_input=raw,
+                        sql_before=sql_before or None,
+                        sql_after=sql_after or None,
+                        uploaded_text=uploaded_text,
                     )
-                st.session_state.analysis = result
-                st.session_state.step = 3
-                st.rerun()
-            except UnsupportedChangeError as exc:
-                st.error(f"Unsupported change: {exc}")
-            except (DataHubError, AgentError, StaleRunError) as exc:
-                st.error(str(exc))
-            except Exception as exc:  # noqa: BLE001
-                st.error(f"Analysis failed: {exc}")
+                )
+            st.session_state.analysis = result
+            st.session_state.step = 3
+            st.rerun()
+        except UnsupportedChangeError as exc:
+            st.error(f"Unsupported change: {exc}")
+        except (DataHubError, AgentError, StaleRunError) as exc:
+            st.error(str(exc))
+        except Exception as exc:  # noqa: BLE001
+            st.error(f"Analysis failed: {exc}")
 
 
 def _step_review() -> None:
@@ -278,15 +303,28 @@ def _step_review() -> None:
     else:
         st.success("Breakage Certificate allows merge (no BREAKS).")
 
-    st.write("**Why this is not just Impact Analysis**")
-    st.caption(
-        "DataHub lists dependents. ContextGuard proves which known queries break, "
-        "emits patches, and gates merge on the certificate."
+    st.info(
+        "DataHub Impact Analysis lists dependents. "
+        "ContextGuard classifies each known query as BREAKS / SAFE / UNKNOWN "
+        "and decides merge_allowed."
     )
 
-    st.write("**Risk reasons**")
-    for reason in risk.reasons:
-        st.write(f"- {reason}")
+    rows = []
+    for q in cert.get("queries") or []:
+        rows.append(
+            {
+                "Verdict": q.get("verdict"),
+                "Query": (q.get("query") or "")[:100],
+                "Reason": q.get("reason"),
+                "Patch?": "yes" if q.get("suggested_patch") else "",
+            }
+        )
+    if rows:
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+
+    with st.expander("Risk reasons"):
+        for reason in risk.reasons:
+            st.write(f"- {reason}")
 
     if result.evidence.unknowns:
         st.warning("Unknowns: " + "; ".join(result.evidence.unknowns))
@@ -311,13 +349,23 @@ def _step_review() -> None:
     tabs[6].write("\n\n".join(result.artifacts.owner_messages))
 
     zip_bytes = package_artifacts_zip(result)
-    st.download_button(
+    dl1, dl2 = st.columns(2)
+    dl1.download_button(
         "Download artifacts ZIP",
         data=zip_bytes,
         file_name=f"contextguard-{result.run_id[:8]}.zip",
         mime="application/zip",
         type="primary",
     )
+    if result.certificate:
+        import json as _json
+
+        dl2.download_button(
+            "Download certificate JSON",
+            data=_json.dumps(result.certificate, indent=2),
+            file_name=f"breakage_certificate-{result.run_id[:8]}.json",
+            mime="application/json",
+        )
 
     settings = _settings_from_session()
     if settings.allow_writeback and not st.session_state.get("demo_mode"):
@@ -345,60 +393,20 @@ def _step_review() -> None:
 
 
 async def _demo_analyze(urn, raw, sql_before, sql_after, uploaded_text):
-    from contextguard.cli import build_offline_result
-    from contextguard.models import (
-        ColumnRef,
-        DownstreamAsset,
-        EvidenceBundle,
-        OwnerRef,
-        QuerySnippet,
-    )
+    from contextguard.cli import build_offline_result, showcase_evidence
+    from contextguard.models import QuerySnippet
 
-    asset = (
-        urn
-        or "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
-    )
-    evidence = EvidenceBundle(
-        asset_urn=asset,
-        asset_name="ecommerce.public.orders",
-        schema_fields=[
-            ColumnRef(urn=f"{asset}.id", name="id", native_type="NUMBER"),
-            ColumnRef(urn=f"{asset}.amount", name="amount", native_type="NUMBER"),
-            ColumnRef(
-                urn=f"{asset}.customer_email",
-                name="customer_email",
-                native_type="VARCHAR",
-            ),
-            ColumnRef(urn=f"{asset}.status", name="status", native_type="VARCHAR"),
-        ],
-        downstream=[
-            DownstreamAsset(
-                urn="urn:li:dashboard:(looker,revenue_overview)",
-                name="Revenue Overview",
-                entity_type="dashboard",
-                is_critical=True,
-                column="amount",
-            ),
-            DownstreamAsset(
-                urn="urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)",
-                name="mart.order_metrics",
-                column="amount",
-            ),
-        ],
-        owners=[
-            OwnerRef(
-                urn="urn:li:corpuser:data-platform",
-                name="Data Platform",
-                email="dp@example.com",
-            )
-        ],
-        queries=[
-            QuerySnippet(query="select amount, customer_email from ecommerce.public.orders"),
-            QuerySnippet(query="select id, status from ecommerce.public.orders"),
-        ],
-        quality_issues=["Freshness assertion delayed 2h"],
-        unknowns=[],
-    )
+    evidence = showcase_evidence()
+    if urn:
+        evidence = evidence.model_copy(update={"asset_urn": urn})
+    if raw and "varchar to varchar" in raw.lower():
+        evidence = evidence.model_copy(
+            update={
+                "downstream": [],
+                "queries": [QuerySnippet(query="select id from ecommerce.public.orders")],
+                "quality_issues": [],
+            }
+        )
     return build_offline_result(
         raw or "drop column amount",
         evidence,
