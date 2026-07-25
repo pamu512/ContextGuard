@@ -61,6 +61,18 @@ class SessionTools:
         return await self._caller.call_tool(name, arguments)
 
 
+def _default_demo_mode() -> bool:
+    flag = os.getenv("CONTEXTGUARD_DEMO", "").strip().lower()
+    if flag in {"1", "true", "yes"}:
+        return True
+    if flag in {"0", "false", "no"}:
+        return False
+    # Hosted / judge-friendly default when no DataHub credentials are configured
+    return not (
+        os.getenv("DATAHUB_MCP_URL", "").strip() and os.getenv("DATAHUB_TOKEN", "").strip()
+    )
+
+
 def main() -> None:
     st.title("ContextGuard")
     st.caption(
@@ -72,6 +84,8 @@ def main() -> None:
         st.session_state.step = 0
     if "analysis" not in st.session_state:
         st.session_state.analysis = None
+    if "demo_mode" not in st.session_state:
+        st.session_state.demo_mode = _default_demo_mode()
 
     step = st.session_state.step
     st.progress((step + 1) / len(STEPS), text=STEPS[step])
@@ -118,7 +132,10 @@ def _step_connect() -> None:
         "Enable DataHub write-back (disabled by default)",
         value=bool(st.session_state.get("allow_writeback", False)),
     )
-    demo = st.checkbox("Demo mode (offline fixtures, no live MCP)", value=False)
+    demo = st.checkbox(
+        "Demo mode (offline fixtures, no live MCP)",
+        value=bool(st.session_state.get("demo_mode", _default_demo_mode())),
+    )
 
     if st.button("Validate connection", type="primary"):
         st.session_state.datahub_mcp_url = mcp_url

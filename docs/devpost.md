@@ -17,4 +17,5 @@ python, streamlit, datahub, mcp, google-adk, gemini, pydantic, pytest, dbt, sql,
 
 ## Try it out
 - https://github.com/pamu512/ContextGuard
-- Demo mode: `streamlit run app.py`
+- Live demo (Streamlit): see README for current hosted URL / `CONTEXTGUARD_DEMO=true streamlit run app.py`
+- Upstream skill PR: https://github.com/datahub-project/datahub-skills/pull/50

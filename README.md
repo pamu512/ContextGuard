@@ -24,11 +24,14 @@ Built for the [DataHub Agent Hackathon](https://datahub.devpost.com/).
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
-streamlit run app.py
+CONTEXTGUARD_DEMO=true streamlit run app.py
 ```
 
-Enable **Demo mode**, select `ecommerce.public.orders`, enter `DROP COLUMN amount`.  
-You should see **Merge allowed: NO**, BREAKS ≥ 1, and consumer patches.
+Demo mode auto-enables when DataHub credentials are absent.  
+Click **Breaking: DROP COLUMN amount** → **Merge allowed: NO**, BREAKS ≥ 1, consumer patches.
+
+Hosted deploy: see [`docs/hosting.md`](docs/hosting.md).  
+Upstream skill PR: https://github.com/datahub-project/datahub-skills/pull/50
 
 ## Live DataHub Cloud
 
