@@ -62,6 +62,10 @@
       {
         "query": "select amount from ecommerce.public.orders",
         "source": null
+      },
+      {
+        "query": "select id, status from ecommerce.public.orders",
+        "source": null
       }
     ],
     "quality_issues": [
@@ -72,14 +76,15 @@
   },
   "risk": {
     "level": "high",
-    "score": 60,
+    "score": 72,
     "reasons": [
       "Dropping a column is a breaking schema change",
       "2 downstream asset(s) depend on this asset/column",
       "1 critical downstream asset(s) affected",
-      "1 known quer(ies) reference this asset",
+      "2 known quer(ies) reference this asset",
       "1 owner(s) should be notified",
-      "1 existing quality issue(s) on this asset"
+      "1 existing quality issue(s) on this asset",
+      "1 known quer(ies) classified BREAKS by certificate engine"
     ],
     "affected_assets": [
       {
@@ -98,14 +103,14 @@
       }
     ],
     "owner_count": 1,
-    "query_usage_count": 1,
+    "query_usage_count": 2,
     "quality_issue_count": 1
   },
   "artifacts": {
-    "impact_report_md": "# ContextGuard Impact Report\n\n**Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n**Change:** `drop_column`\n**Risk:** HIGH (score 60)\n\n## Why this matters\n- Dropping a column is a breaking schema change\n- 2 downstream asset(s) depend on this asset/column\n- 1 critical downstream asset(s) affected\n- 1 known quer(ies) reference this asset\n- 1 owner(s) should be notified\n- 1 existing quality issue(s) on this asset\n\n## Evidence\n- Schema fields: 4\n- Downstream: 2\n- Owners: 1\n- Queries: 1\n\n## Unknowns\n- None reported\n\n## Impact claims\n- Downstream asset `Revenue Overview` may break — evidence: `urn:li:dashboard:(looker,revenue_overview)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Downstream asset `mart.order_metrics` may break — evidence: `urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`",
+    "impact_report_md": "## Breakage Certificate\n\n- Merge allowed: **NO**\n- BREAKS / SAFE / UNKNOWN: 1 / 1 / 0\n- Hash: `587c8802cf24d4c1`\n\n# ContextGuard Impact Report\n\n**Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n**Change:** `drop_column`\n**Risk:** HIGH (score 72)\n\n## Why this matters\n- Dropping a column is a breaking schema change\n- 2 downstream asset(s) depend on this asset/column\n- 1 critical downstream asset(s) affected\n- 2 known quer(ies) reference this asset\n- 1 owner(s) should be notified\n- 1 existing quality issue(s) on this asset\n- 1 known quer(ies) classified BREAKS by certificate engine\n\n## Evidence\n- Schema fields: 4\n- Downstream: 2\n- Owners: 1\n- Queries: 2\n\n## Unknowns\n- None reported\n\n## Impact claims\n- Downstream asset `Revenue Overview` may break — evidence: `urn:li:dashboard:(looker,revenue_overview)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Downstream asset `mart.order_metrics` may break — evidence: `urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)`, `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`",
     "compatibility_sql": "-- Compatibility view preserving `amount` as NULL during migration\nCREATE OR REPLACE VIEW ecommerce.public.orders_compat AS\nSELECT * EXCLUDE (amount), CAST(NULL AS VARCHAR) AS amount\nFROM ecommerce.public.orders;\n",
     "dbt_tests_yml": "version: 2\nmodels:\n  - name: ecommerce.public.orders\n    columns:\n      - name: amount\n        tests:\n          - accepted_values:\n              values: []  # expect zero rows using dropped column post-cutover\n",
-    "migration_checklist_md": "# Migration checklist\n\n1. Confirm risk score (60) with owners.\n2. Open PR with compatibility SQL + dbt tests from this package.\n3. Notify downstream owners (messages below).\n4. Deploy compatibility view / dual-write period.\n5. Migrate consumers, then remove compatibility shim.\n6. Re-run ContextGuard analysis after cutover.",
+    "migration_checklist_md": "# Migration checklist\n\n1. Review Breakage Certificate — merge allowed only if BREAKS == 0.\n2. Confirm risk score (72) with owners.\n3. Apply consumer patches for each BREAKS query (see consumer_patches.sql).\n4. Open PR with compatibility SQL + dbt tests from this package.\n5. Notify downstream owners (messages below).\n6. Deploy compatibility view / dual-write period.\n7. Migrate consumers, then remove compatibility shim.\n8. Re-run ContextGuard; certificate must allow merge before cutover.",
     "owner_messages": [
       "Hi data-platform@example.com — proposed `drop_column` on `ecommerce.public.orders` (urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)) has risk high. Please review the compatibility plan before merge."
     ],
@@ -125,9 +130,75 @@
           "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
         ],
         "severity_note": null
+      },
+      {
+        "claim": "Query references dropped column `amount`",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "severity_note": null
       }
-    ]
+    ],
+    "certificate_md": "# ContextGuard Breakage Certificate (`cgcert/v1`)\n\n- **Run:** `a0b8d58e-1531-42ab-8395-982ad42b5a5c`\n- **Issued:** 2026-07-25T02:15:41Z\n- **Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n- **Change:** `drop_column` amount\n- **Risk:** HIGH (72)\n- **Merge allowed:** NO\n- **Hash:** `587c8802cf24d4c1`\n\n## Summary\n- BREAKS: **1**\n- SAFE: **1**\n- UNKNOWN: **0**\n\n## Query verdicts\n### 1. `BREAKS`\n- Query: `select amount from ecommerce.public.orders`\n- Reason: Query references dropped column `amount`\n- Evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n- Suggested patch:\n```sql\n-- Consumer patch: stop selecting dropped column `amount`\nselect /* REMOVED:amount */ NULL from ecommerce.public.orders\n```\n\n### 2. `SAFE`\n- Query: `select id, status from ecommerce.public.orders`\n- Reason: Query does not reference `amount`\n- Evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n",
+    "consumer_patches_sql": "-- ContextGuard consumer patches (BREAKS only)\n\n-- Patch 1: Query references dropped column `amount`\n-- Consumer patch: stop selecting dropped column `amount`\nselect /* REMOVED:amount */ NULL from ecommerce.public.orders\n"
   },
-  "run_id": "830ad654-c17c-4cba-869f-abe350a69503",
-  "writeback_document_urn": null
+  "run_id": "a0b8d58e-1531-42ab-8395-982ad42b5a5c",
+  "writeback_document_urn": null,
+  "certificate": {
+    "version": "cgcert/v1",
+    "run_id": "a0b8d58e-1531-42ab-8395-982ad42b5a5c",
+    "issued_at": "2026-07-25T02:15:41Z",
+    "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+    "asset_name": "ecommerce.public.orders",
+    "change": {
+      "change_type": "drop_column",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+      "column": "amount",
+      "new_column": null,
+      "old_type": null,
+      "new_type": null,
+      "sql_before": null,
+      "sql_after": null,
+      "raw_input": "DROP COLUMN amount"
+    },
+    "risk_level": "high",
+    "risk_score": 72,
+    "queries": [
+      {
+        "query": "select amount from ecommerce.public.orders",
+        "source": null,
+        "verdict": "BREAKS",
+        "reason": "Query references dropped column `amount`",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "referenced_columns": [
+          "amount"
+        ],
+        "suggested_patch": "-- Consumer patch: stop selecting dropped column `amount`\nselect /* REMOVED:amount */ NULL from ecommerce.public.orders\n"
+      },
+      {
+        "query": "select id, status from ecommerce.public.orders",
+        "source": null,
+        "verdict": "SAFE",
+        "reason": "Query does not reference `amount`",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "referenced_columns": [
+          "id",
+          "status"
+        ],
+        "suggested_patch": null
+      }
+    ],
+    "summary": {
+      "breaks": 1,
+      "safe": 1,
+      "unknown": 0
+    },
+    "merge_allowed": false,
+    "content_hash": "587c8802cf24d4c1",
+    "notes": []
+  }
 }

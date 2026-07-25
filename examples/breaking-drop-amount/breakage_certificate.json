@@ -1,0 +1,57 @@
+{
+  "version": "cgcert/v1",
+  "run_id": "a0b8d58e-1531-42ab-8395-982ad42b5a5c",
+  "issued_at": "2026-07-25T02:15:41Z",
+  "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+  "asset_name": "ecommerce.public.orders",
+  "change": {
+    "change_type": "drop_column",
+    "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+    "column": "amount",
+    "new_column": null,
+    "old_type": null,
+    "new_type": null,
+    "sql_before": null,
+    "sql_after": null,
+    "raw_input": "DROP COLUMN amount"
+  },
+  "risk_level": "high",
+  "risk_score": 72,
+  "queries": [
+    {
+      "query": "select amount from ecommerce.public.orders",
+      "source": null,
+      "verdict": "BREAKS",
+      "reason": "Query references dropped column `amount`",
+      "evidence_urns": [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+      ],
+      "referenced_columns": [
+        "amount"
+      ],
+      "suggested_patch": "-- Consumer patch: stop selecting dropped column `amount`\nselect /* REMOVED:amount */ NULL from ecommerce.public.orders\n"
+    },
+    {
+      "query": "select id, status from ecommerce.public.orders",
+      "source": null,
+      "verdict": "SAFE",
+      "reason": "Query does not reference `amount`",
+      "evidence_urns": [
+        "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+      ],
+      "referenced_columns": [
+        "id",
+        "status"
+      ],
+      "suggested_patch": null
+    }
+  ],
+  "summary": {
+    "breaks": 1,
+    "safe": 1,
+    "unknown": 0
+  },
+  "merge_allowed": false,
+  "content_hash": "587c8802cf24d4c1",
+  "notes": []
+}

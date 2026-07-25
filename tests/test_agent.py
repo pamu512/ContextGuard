@@ -116,7 +116,10 @@ async def test_llm_invalid_then_repair(settings):
     # Force LLM path even without API key
     orch._settings = settings.model_copy(update={"google_api_key": "x"})
     result = await orch.analyze(asset_urn=URN, raw_input="drop column amount")
-    assert result.artifacts.impact_report_md.startswith("# ok")
+    assert "# ok" in result.artifacts.impact_report_md
+    assert result.certificate is not None
+    assert result.certificate["summary"]["breaks"] >= 1
+    assert not result.certificate["merge_allowed"]
     assert calls["n"] == 2
 
 

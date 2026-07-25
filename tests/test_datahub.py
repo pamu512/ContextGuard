@@ -108,7 +108,7 @@ async def test_writeback_idempotent_calls(settings):
     first = await client.save_review_document("Review", "body", related_urn=URN)
     second = await client.save_review_document("Review", "body", related_urn=URN)
     assert first["document"]["urn"] == "urn:li:document:1"
-    assert second["tag"] == "contextguard-reviewed"
+    assert second["tag"] == "contextguard-reviewed"  # default tag on client API
     assert sum(1 for n, _ in tools.calls if n == "save_document") == 2
 
 

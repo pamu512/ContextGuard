@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import io
+import json
 import re
 import zipfile
 from pathlib import Path
 
+from contextguard.certificate import BreakageCertificate
 from contextguard.models import (
     AnalysisResult,
     EvidenceBundle,
@@ -14,6 +16,7 @@ from contextguard.models import (
     ProposedChange,
     RiskAssessment,
 )
+from contextguard.query_impact import QueryImpact, QueryVerdict
 
 _IDENT = re.compile(r"\b([A-Za-z_][\w]*)\b")
 
@@ -80,6 +83,47 @@ def validate_sql_against_schema(sql: str, evidence: EvidenceBundle) -> list[str]
     refs = {m.group(1).lower() for m in _IDENT.finditer(sql)} - keywords
     unknown = sorted(refs - known)
     return [f"Unknown column reference: `{col}`" for col in unknown]
+
+
+def consumer_patches_from_impacts(impacts: list[QueryImpact]) -> str:
+    blocks: list[str] = ["-- ContextGuard consumer patches (BREAKS only)", ""]
+    breaking = [q for q in impacts if q.verdict == QueryVerdict.BREAKS and q.suggested_patch]
+    if not breaking:
+        blocks.append("-- No BREAKS with patches")
+        return "\n".join(blocks) + "\n"
+    for i, q in enumerate(breaking, 1):
+        blocks.append(f"-- Patch {i}: {q.reason}")
+        blocks.append(q.suggested_patch.rstrip())
+        blocks.append("")
+    return "\n".join(blocks)
+
+
+def attach_certificate(
+    artifacts: GeneratedArtifacts,
+    certificate: BreakageCertificate,
+    impacts: list[QueryImpact],
+) -> GeneratedArtifacts:
+    updated = artifacts.model_copy(deep=True)
+    updated.certificate_md = certificate.to_markdown()
+    updated.consumer_patches_sql = consumer_patches_from_impacts(impacts)
+    # Prepend certificate summary into the report so ZIP readers see the wedge first
+    updated.impact_report_md = (
+        f"## Breakage Certificate\n\n"
+        f"- Merge allowed: **{'YES' if certificate.merge_allowed else 'NO'}**\n"
+        f"- BREAKS / SAFE / UNKNOWN: "
+        f"{certificate.summary.breaks} / {certificate.summary.safe} / {certificate.summary.unknown}\n"
+        f"- Hash: `{certificate.content_hash}`\n\n"
+        + updated.impact_report_md
+    )
+    # Add query-level impact claims
+    from contextguard.models import ImpactClaim
+
+    for q in impacts:
+        if q.verdict == QueryVerdict.BREAKS and q.evidence_urns:
+            updated.impact_claims.append(
+                ImpactClaim(claim=q.reason, evidence_urns=q.evidence_urns)
+            )
+    return updated
 
 
 def build_fallback_artifacts(
@@ -191,12 +235,14 @@ def build_fallback_artifacts(
     checklist = [
         "# Migration checklist",
         "",
-        f"1. Confirm risk score ({risk.score}) with owners.",
-        "2. Open PR with compatibility SQL + dbt tests from this package.",
-        "3. Notify downstream owners (messages below).",
-        "4. Deploy compatibility view / dual-write period.",
-        "5. Migrate consumers, then remove compatibility shim.",
-        "6. Re-run ContextGuard analysis after cutover.",
+        f"1. Review Breakage Certificate — merge allowed only if BREAKS == 0.",
+        f"2. Confirm risk score ({risk.score}) with owners.",
+        "3. Apply consumer patches for each BREAKS query (see consumer_patches.sql).",
+        "4. Open PR with compatibility SQL + dbt tests from this package.",
+        "5. Notify downstream owners (messages below).",
+        "6. Deploy compatibility view / dual-write period.",
+        "7. Migrate consumers, then remove compatibility shim.",
+        "8. Re-run ContextGuard; certificate must allow merge before cutover.",
     ]
     messages = []
     for owner in evidence.owners:
@@ -219,6 +265,8 @@ def build_fallback_artifacts(
         migration_checklist_md="\n".join(checklist),
         owner_messages=messages,
         impact_claims=impact_claims,
+        certificate_md="",
+        consumer_patches_sql="",
     )
 
 
@@ -226,8 +274,15 @@ def package_artifacts_zip(result: AnalysisResult) -> bytes:
     buf = io.BytesIO()
     arts = result.artifacts
     with zipfile.ZipFile(buf, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("breakage_certificate.md", arts.certificate_md or "# (missing)\n")
+        if result.certificate:
+            zf.writestr(
+                "breakage_certificate.json",
+                json.dumps(result.certificate, indent=2) + "\n",
+            )
         zf.writestr("impact_report.md", arts.impact_report_md)
         zf.writestr("compatibility.sql", arts.compatibility_sql)
+        zf.writestr("consumer_patches.sql", arts.consumer_patches_sql or "-- none\n")
         zf.writestr("schema.yml", arts.dbt_tests_yml)
         zf.writestr("migration_checklist.md", arts.migration_checklist_md)
         zf.writestr("owner_messages.txt", "\n\n".join(arts.owner_messages) + "\n")
@@ -244,8 +299,18 @@ def package_artifacts_zip(result: AnalysisResult) -> bytes:
 def write_example_bundle(result: AnalysisResult, directory: Path) -> None:
     directory.mkdir(parents=True, exist_ok=True)
     arts = result.artifacts
+    (directory / "breakage_certificate.md").write_text(
+        arts.certificate_md or "", encoding="utf-8"
+    )
+    if result.certificate:
+        (directory / "breakage_certificate.json").write_text(
+            json.dumps(result.certificate, indent=2) + "\n", encoding="utf-8"
+        )
     (directory / "impact_report.md").write_text(arts.impact_report_md, encoding="utf-8")
     (directory / "compatibility.sql").write_text(arts.compatibility_sql, encoding="utf-8")
+    (directory / "consumer_patches.sql").write_text(
+        arts.consumer_patches_sql or "", encoding="utf-8"
+    )
     (directory / "schema.yml").write_text(arts.dbt_tests_yml, encoding="utf-8")
     (directory / "migration_checklist.md").write_text(
         arts.migration_checklist_md, encoding="utf-8"

@@ -1,0 +1,54 @@
+name: ContextGuard Merge Gate
+
+on:
+  pull_request:
+    paths:
+      - "examples/**/breakage_certificate.json"
+      - "changes/**"
+      - ".github/workflows/contextguard.yml"
+      - "contextguard/**"
+      - "pyproject.toml"
+
+jobs:
+  breakage-certificate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ContextGuard
+        run: pip install -e .
+
+      - name: Determine allow-breakage override
+        id: flags
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          if echo "$LABELS" | grep -qi 'allow-breakage'; then
+            echo "allow=--allow-breakage" >> "$GITHUB_OUTPUT"
+          else
+            echo "allow=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Gate on checked-in breaking certificate (must FAIL without override)
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'allow-breakage') }}
+        run: |
+          set +e
+          contextguard check examples/breaking-drop-amount/breakage_certificate.json
+          code=$?
+          set -e
+          if [ "$code" -eq 0 ]; then
+            echo "Expected breaking certificate to fail the gate"
+            exit 1
+          fi
+          echo "Breaking certificate correctly blocked merge"
+
+      - name: Gate on safe certificate (must PASS)
+        run: contextguard check examples/safe-status-type-noop/breakage_certificate.json
+
+      - name: Optional override path
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'allow-breakage') }}
+        run: contextguard check examples/breaking-drop-amount/breakage_certificate.json --allow-breakage

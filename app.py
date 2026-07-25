@@ -260,25 +260,55 @@ def _step_review() -> None:
         return
 
     risk = result.risk
-    st.metric("Risk", f"{risk.level.value.upper()} ({risk.score})")
-    st.write("**Reasons**")
+    cert = result.certificate or {}
+    summary = cert.get("summary") or {}
+    merge_allowed = cert.get("merge_allowed", True)
+
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("Risk", f"{risk.level.value.upper()} ({risk.score})")
+    c2.metric("BREAKS", summary.get("breaks", "—"))
+    c3.metric("SAFE", summary.get("safe", "—"))
+    c4.metric("Merge allowed", "YES" if merge_allowed else "NO")
+
+    if not merge_allowed:
+        st.error(
+            "Breakage Certificate blocks merge: known DataHub queries will break. "
+            "Apply consumer patches or use an explicit override in CI."
+        )
+    else:
+        st.success("Breakage Certificate allows merge (no BREAKS).")
+
+    st.write("**Why this is not just Impact Analysis**")
+    st.caption(
+        "DataHub lists dependents. ContextGuard proves which known queries break, "
+        "emits patches, and gates merge on the certificate."
+    )
+
+    st.write("**Risk reasons**")
     for reason in risk.reasons:
         st.write(f"- {reason}")
-
-    st.write("**Evidence citations**")
-    for claim in result.artifacts.impact_claims:
-        st.write(f"- {claim.claim}")
-        st.caption("URNs: " + ", ".join(claim.evidence_urns))
 
     if result.evidence.unknowns:
         st.warning("Unknowns: " + "; ".join(result.evidence.unknowns))
 
-    tabs = st.tabs(["Report", "SQL", "dbt tests", "Checklist", "Owner messages"])
-    tabs[0].markdown(result.artifacts.impact_report_md)
-    tabs[1].code(result.artifacts.compatibility_sql, language="sql")
-    tabs[2].code(result.artifacts.dbt_tests_yml, language="yaml")
-    tabs[3].markdown(result.artifacts.migration_checklist_md)
-    tabs[4].write("\n\n".join(result.artifacts.owner_messages))
+    tabs = st.tabs(
+        [
+            "Certificate",
+            "Consumer patches",
+            "Report",
+            "Compat SQL",
+            "dbt tests",
+            "Checklist",
+            "Owner messages",
+        ]
+    )
+    tabs[0].markdown(result.artifacts.certificate_md or "_No certificate_")
+    tabs[1].code(result.artifacts.consumer_patches_sql or "-- none", language="sql")
+    tabs[2].markdown(result.artifacts.impact_report_md)
+    tabs[3].code(result.artifacts.compatibility_sql, language="sql")
+    tabs[4].code(result.artifacts.dbt_tests_yml, language="yaml")
+    tabs[5].markdown(result.artifacts.migration_checklist_md)
+    tabs[6].write("\n\n".join(result.artifacts.owner_messages))
 
     zip_bytes = package_artifacts_zip(result)
     st.download_button(
@@ -315,36 +345,31 @@ def _step_review() -> None:
 
 
 async def _demo_analyze(urn, raw, sql_before, sql_after, uploaded_text):
-    from contextguard.analysis import parse_proposed_change, score_risk
-    from contextguard.artifacts import build_fallback_artifacts
+    from contextguard.cli import build_offline_result
     from contextguard.models import (
-        AnalysisResult,
         ColumnRef,
         DownstreamAsset,
         EvidenceBundle,
         OwnerRef,
         QuerySnippet,
     )
-    import uuid
 
-    change = parse_proposed_change(
-        raw or "drop column amount",
-        urn or "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
-        sql_before=sql_before or None,
-        sql_after=sql_after or None,
-        uploaded_text=uploaded_text,
+    asset = (
+        urn
+        or "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
     )
     evidence = EvidenceBundle(
-        asset_urn=change.asset_urn,
+        asset_urn=asset,
         asset_name="ecommerce.public.orders",
         schema_fields=[
-            ColumnRef(urn=f"{change.asset_urn}.id", name="id", native_type="NUMBER"),
-            ColumnRef(urn=f"{change.asset_urn}.amount", name="amount", native_type="NUMBER"),
+            ColumnRef(urn=f"{asset}.id", name="id", native_type="NUMBER"),
+            ColumnRef(urn=f"{asset}.amount", name="amount", native_type="NUMBER"),
             ColumnRef(
-                urn=f"{change.asset_urn}.customer_email",
+                urn=f"{asset}.customer_email",
                 name="customer_email",
                 native_type="VARCHAR",
             ),
+            ColumnRef(urn=f"{asset}.status", name="status", native_type="VARCHAR"),
         ],
         downstream=[
             DownstreamAsset(
@@ -352,29 +377,33 @@ async def _demo_analyze(urn, raw, sql_before, sql_after, uploaded_text):
                 name="Revenue Overview",
                 entity_type="dashboard",
                 is_critical=True,
-                column=change.column or "amount",
+                column="amount",
             ),
             DownstreamAsset(
                 urn="urn:li:dataset:(urn:li:dataPlatform:dbt,mart.order_metrics,PROD)",
                 name="mart.order_metrics",
-                column=change.column or "amount",
+                column="amount",
             ),
         ],
         owners=[
-            OwnerRef(urn="urn:li:corpuser:data-platform", name="Data Platform", email="dp@example.com")
+            OwnerRef(
+                urn="urn:li:corpuser:data-platform",
+                name="Data Platform",
+                email="dp@example.com",
+            )
         ],
-        queries=[QuerySnippet(query="select amount, customer_email from orders")],
+        queries=[
+            QuerySnippet(query="select amount, customer_email from ecommerce.public.orders"),
+            QuerySnippet(query="select id, status from ecommerce.public.orders"),
+        ],
         quality_issues=["Freshness assertion delayed 2h"],
         unknowns=[],
     )
-    risk = score_risk(change, evidence)
-    arts = build_fallback_artifacts(change, evidence, risk)
-    return AnalysisResult(
-        change=change,
-        evidence=evidence,
-        risk=risk,
-        artifacts=arts,
-        run_id=str(uuid.uuid4()),
+    return build_offline_result(
+        raw or "drop column amount",
+        evidence,
+        sql_before=sql_before or None,
+        sql_after=sql_after or None,
     )
 
 

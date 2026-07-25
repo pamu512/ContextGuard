@@ -11,20 +11,22 @@ from pydantic import ValidationError
 
 from contextguard.analysis import parse_proposed_change, score_risk
 from contextguard.artifacts import (
+    attach_certificate,
     build_fallback_artifacts,
     ensure_claims_have_urns,
     validate_sql_against_schema,
 )
+from contextguard.certificate import build_certificate
 from contextguard.config import Settings, get_settings
 from contextguard.datahub import DataHubClient, DataHubError
 from contextguard.models import (
     AnalysisResult,
     EvidenceBundle,
     GeneratedArtifacts,
-    ImpactClaim,
     ProposedChange,
     RiskAssessment,
 )
+from contextguard.query_impact import QueryVerdict, classify_queries
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +79,33 @@ class AnalysisOrchestrator:
             raise AgentError("Unresolved asset — DataHub returned empty evidence")
 
         risk = score_risk(change, evidence)
+        impacts = classify_queries(change, evidence)
+        breaks = sum(1 for q in impacts if q.verdict == QueryVerdict.BREAKS)
+        if breaks:
+            # Query proof raises severity beyond lineage-only scoring
+            bumped = min(100, risk.score + min(25, breaks * 10))
+            reasons = list(risk.reasons) + [
+                f"{breaks} known quer(ies) classified BREAKS by certificate engine"
+            ]
+            risk = risk.model_copy(
+                update={
+                    "score": bumped,
+                    "reasons": reasons,
+                    "level": _level_for_score(bumped),
+                }
+            )
+
         artifacts = await self._generate_artifacts(change, evidence, risk)
+        cert = build_certificate(
+            run_id=run_id,
+            asset_urn=evidence.asset_urn,
+            asset_name=evidence.asset_name,
+            change=change,
+            risk=risk,
+            query_impacts=impacts,
+            notes=list(evidence.unknowns),
+        )
+        artifacts = attach_certificate(artifacts, cert, impacts)
         self._assert_not_stale(run_id)
 
         return AnalysisResult(
@@ -86,14 +114,17 @@ class AnalysisOrchestrator:
             risk=risk,
             artifacts=artifacts,
             run_id=run_id,
+            certificate=cert.model_dump(mode="json"),
         )
 
     async def writeback(self, result: AnalysisResult) -> AnalysisResult:
         self._assert_not_stale(result.run_id)
+        content = result.artifacts.certificate_md or result.artifacts.impact_report_md
         payload = await self._client.save_review_document(
-            title=f"ContextGuard review: {result.evidence.asset_name}",
-            content=result.artifacts.impact_report_md,
+            title=f"ContextGuard certificate: {result.evidence.asset_name}",
+            content=content,
             related_urn=result.evidence.asset_urn,
+            tag="contextguard-certificate",
         )
         doc = payload.get("document") if isinstance(payload, dict) else None
         urn = None
@@ -234,6 +265,18 @@ def _extract_json(text: str) -> dict[str, Any]:
     if start < 0 or end < 0:
         raise AgentError("LLM response did not contain JSON")
     return json.loads(text[start : end + 1])
+
+
+def _level_for_score(score: int):
+    from contextguard.models import RiskLevel
+
+    if score >= 75:
+        return RiskLevel.CRITICAL
+    if score >= 50:
+        return RiskLevel.HIGH
+    if score >= 25:
+        return RiskLevel.MEDIUM
+    return RiskLevel.LOW
 
 
 async def build_live_orchestrator(settings: Settings | None = None) -> AnalysisOrchestrator:

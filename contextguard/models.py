@@ -102,6 +102,8 @@ class GeneratedArtifacts(BaseModel):
     migration_checklist_md: str
     owner_messages: list[str] = Field(default_factory=list)
     impact_claims: list[ImpactClaim] = Field(default_factory=list)
+    certificate_md: str = ""
+    consumer_patches_sql: str = ""
 
 
 class AnalysisResult(BaseModel):
@@ -111,3 +113,4 @@ class AnalysisResult(BaseModel):
     artifacts: GeneratedArtifacts
     run_id: str
     writeback_document_urn: str | None = None
+    certificate: dict[str, Any] | None = None

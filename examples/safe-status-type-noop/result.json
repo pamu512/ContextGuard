@@ -43,29 +43,35 @@
         "email": "data-platform@example.com"
       }
     ],
-    "queries": [],
+    "queries": [
+      {
+        "query": "select id from ecommerce.public.orders",
+        "source": null
+      }
+    ],
     "quality_issues": [],
     "unknowns": [],
     "raw_tool_payloads": {}
   },
   "risk": {
     "level": "medium",
-    "score": 25,
+    "score": 27,
     "reasons": [
       "Type changes can break casts, joins, and BI calculations",
       "No downstream dependencies found in DataHub lineage",
+      "1 known quer(ies) reference this asset",
       "1 owner(s) should be notified"
     ],
     "affected_assets": [],
     "owner_count": 1,
-    "query_usage_count": 0,
+    "query_usage_count": 1,
     "quality_issue_count": 0
   },
   "artifacts": {
-    "impact_report_md": "# ContextGuard Impact Report\n\n**Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n**Change:** `type_change`\n**Risk:** MEDIUM (score 25)\n\n## Why this matters\n- Type changes can break casts, joins, and BI calculations\n- No downstream dependencies found in DataHub lineage\n- 1 owner(s) should be notified\n\n## Evidence\n- Schema fields: 4\n- Downstream: 0\n- Owners: 1\n- Queries: 0\n\n## Unknowns\n- None reported\n\n## Impact claims\n- No downstream dependents found in retrieved lineage — evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`",
+    "impact_report_md": "## Breakage Certificate\n\n- Merge allowed: **YES**\n- BREAKS / SAFE / UNKNOWN: 0 / 1 / 0\n- Hash: `b7e1e8957e93da3f`\n\n# ContextGuard Impact Report\n\n**Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n**Change:** `type_change`\n**Risk:** MEDIUM (score 27)\n\n## Why this matters\n- Type changes can break casts, joins, and BI calculations\n- No downstream dependencies found in DataHub lineage\n- 1 known quer(ies) reference this asset\n- 1 owner(s) should be notified\n\n## Evidence\n- Schema fields: 4\n- Downstream: 0\n- Owners: 1\n- Queries: 1\n\n## Unknowns\n- None reported\n\n## Impact claims\n- No downstream dependents found in retrieved lineage — evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`",
     "compatibility_sql": "-- Soft type migration via casted compatibility column\nCREATE OR REPLACE VIEW ecommerce.public.orders_compat AS\nSELECT * EXCLUDE (status), CAST(status AS VARCHAR) AS status\nFROM ecommerce.public.orders;\n",
     "dbt_tests_yml": "version: 2\nmodels:\n  - name: ecommerce.public.orders\n    columns:\n      - name: status\n        tests: [not_null]\n",
-    "migration_checklist_md": "# Migration checklist\n\n1. Confirm risk score (25) with owners.\n2. Open PR with compatibility SQL + dbt tests from this package.\n3. Notify downstream owners (messages below).\n4. Deploy compatibility view / dual-write period.\n5. Migrate consumers, then remove compatibility shim.\n6. Re-run ContextGuard analysis after cutover.",
+    "migration_checklist_md": "# Migration checklist\n\n1. Review Breakage Certificate — merge allowed only if BREAKS == 0.\n2. Confirm risk score (27) with owners.\n3. Apply consumer patches for each BREAKS query (see consumer_patches.sql).\n4. Open PR with compatibility SQL + dbt tests from this package.\n5. Notify downstream owners (messages below).\n6. Deploy compatibility view / dual-write period.\n7. Migrate consumers, then remove compatibility shim.\n8. Re-run ContextGuard; certificate must allow merge before cutover.",
     "owner_messages": [
       "Hi data-platform@example.com — proposed `type_change` on `ecommerce.public.orders` (urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)) has risk medium. Please review the compatibility plan before merge."
     ],
@@ -77,8 +83,53 @@
         ],
         "severity_note": null
       }
-    ]
+    ],
+    "certificate_md": "# ContextGuard Breakage Certificate (`cgcert/v1`)\n\n- **Run:** `98c0d0b2-8cd6-4ba8-b6be-fe19192e7a22`\n- **Issued:** 2026-07-25T02:15:41Z\n- **Asset:** `ecommerce.public.orders` (`urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`)\n- **Change:** `type_change` status → VARCHAR\n- **Risk:** MEDIUM (27)\n- **Merge allowed:** YES\n- **Hash:** `b7e1e8957e93da3f`\n\n## Summary\n- BREAKS: **0**\n- SAFE: **1**\n- UNKNOWN: **0**\n\n## Query verdicts\n### 1. `SAFE`\n- Query: `select id from ecommerce.public.orders`\n- Reason: Query does not reference `status`\n- Evidence: `urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)`\n",
+    "consumer_patches_sql": "-- ContextGuard consumer patches (BREAKS only)\n\n-- No BREAKS with patches\n"
   },
-  "run_id": "480fe28c-1fde-4bbe-ab60-d6532111f724",
-  "writeback_document_urn": null
+  "run_id": "98c0d0b2-8cd6-4ba8-b6be-fe19192e7a22",
+  "writeback_document_urn": null,
+  "certificate": {
+    "version": "cgcert/v1",
+    "run_id": "98c0d0b2-8cd6-4ba8-b6be-fe19192e7a22",
+    "issued_at": "2026-07-25T02:15:41Z",
+    "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+    "asset_name": "ecommerce.public.orders",
+    "change": {
+      "change_type": "type_change",
+      "asset_urn": "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)",
+      "column": "status",
+      "new_column": null,
+      "old_type": "VARCHAR",
+      "new_type": "VARCHAR",
+      "sql_before": null,
+      "sql_after": null,
+      "raw_input": "change column status from VARCHAR to VARCHAR"
+    },
+    "risk_level": "medium",
+    "risk_score": 27,
+    "queries": [
+      {
+        "query": "select id from ecommerce.public.orders",
+        "source": null,
+        "verdict": "SAFE",
+        "reason": "Query does not reference `status`",
+        "evidence_urns": [
+          "urn:li:dataset:(urn:li:dataPlatform:snowflake,ecommerce.public.orders,PROD)"
+        ],
+        "referenced_columns": [
+          "id"
+        ],
+        "suggested_patch": null
+      }
+    ],
+    "summary": {
+      "breaks": 0,
+      "safe": 1,
+      "unknown": 0
+    },
+    "merge_allowed": true,
+    "content_hash": "b7e1e8957e93da3f",
+    "notes": []
+  }
 }
