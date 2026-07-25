@@ -30,3 +30,9 @@ docker compose up --build
 CONTEXTGUARD_DEMO=true streamlit run app.py --server.port 8501 &
 cloudflared tunnel --url http://localhost:8501
 ```
+
+Use the printed `*.trycloudflare.com` URL for short demos. For Devpost, prefer Streamlit Community Cloud (stable URL).
+
+## Upstream OSS contribution
+
+Skill PR: https://github.com/datahub-project/datahub-skills/pull/50

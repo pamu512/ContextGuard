@@ -16,6 +16,7 @@ We pull known queries via MCP, deterministically classify each as BREAKS/SAFE/UN
 python, streamlit, datahub, mcp, google-adk, gemini, pydantic, pytest, dbt, sql, github-actions
 
 ## Try it out
-- https://github.com/pamu512/ContextGuard
-- Live demo (Streamlit): see README for current hosted URL / `CONTEXTGUARD_DEMO=true streamlit run app.py`
-- Upstream skill PR: https://github.com/datahub-project/datahub-skills/pull/50
+- Repo: https://github.com/pamu512/ContextGuard
+- Live demo: deploy via https://share.streamlit.io → `pamu512/ContextGuard` / `main` / `app.py` (Demo mode auto-on)
+- Local/tunnel: `CONTEXTGUARD_DEMO=true streamlit run app.py`
+- Upstream skill PR (OSS bonus): https://github.com/datahub-project/datahub-skills/pull/50
